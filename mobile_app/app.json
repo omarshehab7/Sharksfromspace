@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Sharks From Space",
+    "slug": "sharks-from-space",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icons/app-icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A1628"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sharksfromspace.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to show nearby shark activity hotspots."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/adaptive-icon.png",
+        "backgroundColor": "#0A1628"
+      },
+      "package": "com.sharksfromspace.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications",
+      [
+        "@rnmapbox/maps/app.plugin.js",
+        {
+          "RNMapboxMapsDownloadToken": "sk.eyJ1Ijoib21hcm1vaGFtZWQyNiIsImEiOiJjbW1zZDQ4MWYxajk5MnBzZDNnMTdvOWhqIn0.cLWvSyVqLXWEEYccOGdhgA"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "394b5bec-723a-48a3-9b28-fd0583ed2f42"
+      }
+    }
+  }
+}
