@@ -1,0 +1,105 @@
+# ===========================
+# Ruflo Workflow Definition
+# ===========================
+# Orchestrates the Sharks From Space data pipeline.
+#
+# 8-step workflow:
+#   1. fetch_data        → download NASA satellite datasets (PACE, SST, SWOT)
+#   2. preprocess_grids  → quality filter, regrid, unit convert
+#   3. extract_features  → build ML feature matrix
+#   4. detect_fronts     → Sobel gradient ocean front detection
+#   5. detect_eddies     → SSHA mesoscale eddy detection
+#   6. compute_productivity → composite marine productivity index
+#   7. run_predictions   → shark habitat model (HabitatScore formula)
+#   8. generate_outputs  → GeoJSON hotspots + GeoTIFF heatmaps
+#
+# Run with: ruflo run
+
+name: sharks-from-space-pipeline
+description: >
+  Fetches NASA satellite ocean data (PACE, GHRSST MUR SST, SWOT),
+  processes it through environmental feature extraction, ocean front
+  and eddy detection, productivity analysis, and shark habitat prediction.
+  Outputs GeoJSON hotspot layers and GeoTIFF heatmap rasters.
+
+schedule:
+  # Run every 6 hours to capture latest satellite passes
+  cron: "0 */6 * * *"
+
+env:
+  BOUNDING_BOX: "-80,20,-60,35"    # Caribbean + Gulf Stream (default)
+  DATE_RANGE: "auto"                # "auto" = last 7 days
+  RESOLUTION_DEG: "0.04"           # ~4 km grid resolution
+  RISK_THRESHOLD: "0.5"
+
+tasks:
+  # ---- Step 1: Fetch NASA Datasets ----
+  fetch_data:
+    description: "Download PACE, MUR SST, and SWOT data from NASA Earthdata"
+    script: tasks/fetch_data.py
+    timeout: 45m
+    retry: 2
+    env:
+      FETCH_PACE: "true"
+      FETCH_SST: "true"
+      FETCH_SWOT: "true"
+
+  # ---- Step 2: Preprocess Satellite Grids ----
+  preprocess_grids:
+    description: "Quality filter, regrid to common 4km grid, unit conversions"
+    script: tasks/preprocess_grids.py
+    depends_on:
+      - fetch_data
+    timeout: 20m
+
+  # ---- Step 3: Extract Environmental Features ----
+  extract_features:
+    description: "Build ML feature DataFrame from preprocessed grids"
+    script: tasks/extract_features.py
+    depends_on:
+      - preprocess_grids
+      - detect_fronts
+      - detect_eddies
+      - compute_productivity
+    timeout: 10m
+
+  # ---- Step 4: Detect Ocean Fronts ----
+  detect_fronts:
+    description: "Sobel gradient + Canny edge thermal front detection"
+    script: tasks/detect_fronts.py
+    depends_on:
+      - preprocess_grids
+    timeout: 10m
+
+  # ---- Step 5: Detect Eddy Structures ----
+  detect_eddies:
+    description: "SSHA threshold eddy detection + proximity scoring"
+    script: tasks/detect_eddies.py
+    depends_on:
+      - preprocess_grids
+    timeout: 10m
+
+  # ---- Step 6: Compute Productivity Index ----
+  compute_productivity:
+    description: "Composite marine ecosystem productivity index"
+    script: tasks/compute_productivity.py
+    depends_on:
+      - preprocess_grids
+      - detect_fronts
+    timeout: 10m
+
+  # ---- Step 7: Run Shark Habitat Prediction ----
+  run_predictions:
+    description: "Execute habitat model → probability_of_shark_activity"
+    script: tasks/run_predictions.py
+    depends_on:
+      - extract_features
+    timeout: 10m
+
+  # ---- Step 8: Generate Geospatial Output ----
+  generate_outputs:
+    description: "Write GeoJSON hotspot layers and GeoTIFF heatmap rasters"
+    script: tasks/generate_outputs.py
+    depends_on:
+      - run_predictions
+    timeout: 10m

@@ -1,0 +1,106 @@
+# ===========================
+# Sharks From Space — Docker Compose
+# ===========================
+# Start everything:    docker-compose up -d
+# Backend only:        docker-compose up backend
+# View logs:           docker-compose logs -f backend
+# Reset DB:            docker-compose down -v && docker-compose up -d
+
+services:
+
+  # ---- PostgreSQL + PostGIS ----
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: sharks-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-sharks}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB:       ${POSTGRES_DB:-sharksfromspace}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sharks} -d ${POSTGRES_DB:-sharksfromspace}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sharks-net
+
+  # ---- Redis (prediction cache) ----
+  redis:
+    image: redis:7-alpine
+    container_name: sharks-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sharks-net
+
+  # ---- FastAPI Backend ----
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: sharks-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_URL:     redis://redis:6379/0
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - shared_data:/app/data
+      - ./backend/models:/app/models  # Persist trained ML model
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - sharks-net
+
+  # ---- Data Pipeline (periodic runner) ----
+  data-pipeline:
+    build:
+      context: .
+      dockerfile: data_pipeline/Dockerfile
+    container_name: sharks-pipeline
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - shared_data:/app/data
+    networks:
+      - sharks-net
+
+volumes:
+  postgres_data:
+    driver: local
+  shared_data:
+    driver: local
+
+networks:
+  sharks-net:
+    driver: bridge

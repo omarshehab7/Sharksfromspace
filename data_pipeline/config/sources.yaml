@@ -1,0 +1,62 @@
+# ===========================
+# Data Source Configuration
+# ===========================
+# NASA satellite data product URLs and parameters.
+
+sources:
+  # GHRSST MUR SST (Multi-scale Ultra-high Resolution Sea Surface Temperature)
+  ghrsst_mur:
+    provider: PODAAC
+    collection_id: "C1996881146-PODAAC"
+    description: "Daily global SST at 1km resolution, gap-free"
+    variables:
+      - analysed_sst
+      - analysis_error
+    resolution_km: 1.0
+    temporal_resolution: daily
+
+  # MODIS Aqua Ocean Color (Chlorophyll-a)
+  modis_chlorophyll:
+    provider: OB_DAAC
+    collection_id: "C1664741464-OB_DAAC"
+    description: "MODIS Aqua Level 3 Chlorophyll-a, 4km daily"
+    variables:
+      - chlor_a
+    resolution_km: 4.0
+    temporal_resolution: daily
+
+  # MODIS Aqua SST
+  modis_sst:
+    provider: OB_DAAC
+    collection_id: "C1664741463-OB_DAAC"
+    description: "MODIS Aqua Level 3 SST (11μm day), 4km daily"
+    variables:
+      - sst
+      - qual_sst
+    resolution_km: 4.0
+    temporal_resolution: daily
+
+  # ETOPO1 Global Bathymetry
+  etopo_bathymetry:
+    provider: NOAA
+    url: "https://www.ngdc.noaa.gov/thredds/dodsC/global/ETOPO2022/60s/60s_surface_elev_netcdf/ETOPO_2022_v1_60s_N90W180_surface.nc"
+    description: "Global bathymetry and topography at 1 arc-minute"
+    variables:
+      - z
+    resolution_km: 1.85
+    temporal_resolution: static
+
+# Default region of interest
+default_region:
+  # Global coastal zones
+  bounding_box:
+    west: -180.0
+    south: -60.0
+    east: 180.0
+    north: 60.0
+
+# Fetch parameters
+fetch:
+  days_back: 7
+  max_retries: 3
+  timeout_seconds: 1800
